@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "transform_indicator"
-version = "0.1.0"
+version = "0.1.1"
 name = "Transform Indicator"
 tagline = "Show the start point and delta while moving, rotating or scaling"
 maintainer = "AquaXV"
