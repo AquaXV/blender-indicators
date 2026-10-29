@@ -6,6 +6,11 @@ MODE_PROPS = {
     'EDIT_MESH': "show_edit_mesh",
     'POSE': "show_pose",
 }
+KIND_PROPS = {
+    'TRANSLATE': "show_move",
+    'ROTATE': "show_rotate",
+    'RESIZE': "show_scale",
+}
 
 
 def get():
@@ -17,9 +22,18 @@ def mode_enabled(context):
     return name is not None and getattr(get(), name)
 
 
+def kind_enabled(kind):
+    return getattr(get(), KIND_PROPS[kind])
+
+
 class TransformIndicatorPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
+    enabled: BoolProperty(
+        name="Transform Indicator",
+        description="Show the transform indicator",
+        default=True,
+    )
     use_hotkeys: BoolProperty(
         name="Capture on G/R/S",
         description="Record the exact start state when G, R or S is pressed",
@@ -36,6 +50,9 @@ class TransformIndicatorPreferences(bpy.types.AddonPreferences):
     show_object: BoolProperty(name="Object Mode", default=True)
     show_edit_mesh: BoolProperty(name="Mesh Edit Mode", default=True)
     show_pose: BoolProperty(name="Pose Mode", default=True)
+    show_move: BoolProperty(name="Move", description="Show the indicator while moving", default=True)
+    show_rotate: BoolProperty(name="Rotate", description="Show the indicator while rotating", default=True)
+    show_scale: BoolProperty(name="Scale", description="Show the indicator while scaling", default=True)
     show_values: BoolProperty(
         name="Show Values",
         description="Label the indicator with the distance, angle or scale factor, in scene units",

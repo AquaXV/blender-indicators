@@ -12,6 +12,7 @@ POLL_INTERVAL = 0.05
 START_TIMEOUT = 0.5
 KEYMAPS = ("Object Mode", "Mesh", "Pose")
 HOTKEYS = ('G', 'R', 'S')
+TOGGLE_KEY = 'T'
 
 _session = None
 _draw_handle = None
@@ -62,6 +63,8 @@ def _draw_callback():
     if kind is None:
         return
     p = prefs.get()
+    if not p.enabled:
+        return
     if _session is None:
         if not p.use_watcher or not prefs.mode_enabled(context):
             return
@@ -71,7 +74,7 @@ def _draw_callback():
         return
     try:
         ind = current.measure(context, kind)
-        if ind is not None:
+        if ind is not None and prefs.kind_enabled(kind):
             draw.draw(context, ind, p)
     except Exception:
         current.failed = True
@@ -88,12 +91,51 @@ class TRANSFORM_INDICATOR_OT_capture(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         area = context.area
-        return area is not None and area.type == 'VIEW_3D' and prefs.mode_enabled(context)
+        return area is not None and area.type == 'VIEW_3D' and prefs.get().enabled and prefs.mode_enabled(context)
 
     def invoke(self, context, event):
         if prefs.get().use_hotkeys:
             _start(context)
         return {'PASS_THROUGH'}
+
+
+class TRANSFORM_INDICATOR_OT_toggle(bpy.types.Operator):
+    """Turn the transform indicator on or off"""
+
+    bl_idname = "transform_indicator.toggle"
+    bl_label = "Toggle Transform Indicator"
+
+    def execute(self, context):
+        p = prefs.get()
+        p.enabled = not p.enabled
+        self.report({'INFO'}, "Transform Indicator " + ("on" if p.enabled else "off"))
+        return {'FINISHED'}
+
+
+class VIEW3D_PT_transform_indicator(bpy.types.Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = 'VIEW3D_PT_overlay'
+    bl_label = "Transform Indicator"
+
+    def draw_header(self, context):
+        self.layout.prop(prefs.get(), "enabled", text="")
+
+    def draw(self, context):
+        p = prefs.get()
+        col = self.layout.column()
+        col.active = p.enabled
+        col.prop(p, "show_move")
+        col.prop(p, "show_rotate")
+        col.prop(p, "show_scale")
+
+
+CLASSES = (
+    prefs.TransformIndicatorPreferences,
+    TRANSFORM_INDICATOR_OT_capture,
+    TRANSFORM_INDICATOR_OT_toggle,
+    VIEW3D_PT_transform_indicator,
+)
 
 
 def _register_keymaps():
@@ -105,12 +147,15 @@ def _register_keymaps():
         for key in HOTKEYS:
             kmi = km.keymap_items.new(TRANSFORM_INDICATOR_OT_capture.bl_idname, key, 'PRESS')
             _keymap_items.append((km, kmi))
+    km = keyconfig.keymaps.new(name="3D View", space_type='VIEW_3D')
+    kmi = km.keymap_items.new(TRANSFORM_INDICATOR_OT_toggle.bl_idname, TOGGLE_KEY, 'PRESS', shift=True, alt=True)
+    _keymap_items.append((km, kmi))
 
 
 def register():
     global _draw_handle
-    bpy.utils.register_class(prefs.TransformIndicatorPreferences)
-    bpy.utils.register_class(TRANSFORM_INDICATOR_OT_capture)
+    for cls in CLASSES:
+        bpy.utils.register_class(cls)
     _register_keymaps()
     _draw_handle = bpy.types.SpaceView3D.draw_handler_add(_draw_callback, (), 'WINDOW', 'POST_PIXEL')
 
@@ -126,5 +171,5 @@ def unregister():
     for km, kmi in _keymap_items:
         km.keymap_items.remove(kmi)
     _keymap_items.clear()
-    bpy.utils.unregister_class(TRANSFORM_INDICATOR_OT_capture)
-    bpy.utils.unregister_class(prefs.TransformIndicatorPreferences)
+    for cls in reversed(CLASSES):
+        bpy.utils.unregister_class(cls)
